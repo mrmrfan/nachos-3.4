@@ -50,6 +50,7 @@
 // For simplicity, this is just the max over all architectures.
 #define MachineStateSize 18 
 
+#define priority_num 5
 
 // Size of the thread's private execution stack.
 // WATCH OUT IF THIS ISN'T BIG ENOUGH!!!!!
@@ -83,7 +84,7 @@ class Thread {
     void *machineState[MachineStateSize];  // all registers except for stackTop
 
   public:
-    Thread(char* debugName);		// initialize a Thread 
+    Thread(char* debugNamei, int _prior);		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 
@@ -101,11 +102,17 @@ class Thread {
     void CheckOverflow();   			// Check if thread has 
 						// overflowed its stack
     void setStatus(ThreadStatus st) { status = st; }
+	void setprior(int _prior) { prior = _prior; }
+	void settime_slices(int _time_slices) { time_slices = _time_slices; }
+	
 	int gettid() { return tid; }
 	int getuid() { return uid; }
     char* getName() { return (name); }
-    void Print() { 
-		printf("tid:%d uid:%d name:%s status:", tid, uid, name);
+	int getprior() { return prior; }
+	int gettime_slices() { return time_slices; }
+    
+	void Print() { 
+		printf("tid:%d uid:%d name:%s prior:%d status:", tid, uid, name, prior);
 		if (status == JUST_CREATED)
 			printf("%s\n", "JUST_CREATED");
 		else if (status == RUNNING)
@@ -126,6 +133,8 @@ class Thread {
 	int tid;
 	int uid;
     char* name;
+	int prior;                 // from 0-4
+	int time_slices;           // from 1-5
 
     void StackAllocate(VoidFunctionPtr func, void *arg);
     					// Allocate a stack for thread.

@@ -83,7 +83,7 @@ Initialize(int argc, char **argv)
 {
     int argCount;
     char* debugArgs = "";
-    bool randomYield = FALSE;
+    int randomYield = -1;
 	
 	// modified by fan
 	for (int i = 0; i < ThreadMaxNum; i++)
@@ -111,9 +111,10 @@ Initialize(int argc, char **argv)
 	    }
 	} else if (!strcmp(*argv, "-rs")) {
 	    ASSERT(argc > 1);
-	    RandomInit(atoi(*(argv + 1)));	// initialize pseudo-random
+		unsigned s = atoi(*(argv + 1));
+	    RandomInit(s);	// initialize pseudo-random
 						// number generator
-	    randomYield = TRUE;
+	    randomYield = s;
 	    argCount = 2;
 	}
 #ifdef USER_PROGRAM
@@ -141,7 +142,7 @@ Initialize(int argc, char **argv)
     stats = new Statistics();			// collect statistics
     interrupt = new Interrupt;			// start up interrupt handling
     scheduler = new Scheduler();		// initialize the ready queue
-    if (randomYield)				// start the timer (if needed)
+    if (randomYield != -1)				// start the timer (if needed)
 	timer = new Timer(TimerInterruptHandler, 0, randomYield);
 
     threadToBeDestroyed = NULL;
@@ -149,7 +150,7 @@ Initialize(int argc, char **argv)
     // We didn't explicitly allocate the current thread we are running in.
     // But if it ever tries to give up the CPU, we better have a Thread
     // object to save its state. 
-    currentThread = new Thread("main");
+    currentThread = new Thread("main", 1);
     currentThread->setStatus(RUNNING);
 
     interrupt->Enable();

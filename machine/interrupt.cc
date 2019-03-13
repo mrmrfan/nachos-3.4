@@ -171,10 +171,28 @@ Interrupt::OneTick()
     ChangeLevel(IntOff, IntOn);		// re-enable interrupts
     if (yieldOnReturn) {		// if the timer device handler asked 
 					// for a context switch, ok to do it now
-	yieldOnReturn = FALSE;
- 	status = SystemMode;		// yield is a kernel routine
-	currentThread->Yield();
-	status = old;
+		yieldOnReturn = FALSE;
+		
+		Thread *t = currentThread;
+		int ts = t->gettime_slices();
+		if (ts > 1)
+			t->settime_slices(ts-1);
+		else {
+			status = SystemMode;
+			if (t->getprior() == priority_num - 1) {
+				t->Yield();
+			}
+			else {
+				t->setprior(t->getprior()+1);
+				t->settime_slices(t->getprior()+1);
+				DEBUG('t', "move thread tid:%d to the next priority queue %d with %d time slices\n", t->gettid(), t->getprior(), t->gettime_slices());
+				t->Yield();
+			}
+			status = old;
+		}
+ 		//status = SystemMode;		// yield is a kernel routine
+		//currentThread->Yield();
+		//status = old;
     }
 }
 

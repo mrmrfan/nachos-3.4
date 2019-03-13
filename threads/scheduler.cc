@@ -28,8 +28,9 @@
 //----------------------------------------------------------------------
 
 Scheduler::Scheduler()
-{ 
-    readyList = new List; 
+{
+	for (int i = 0; i < priority_num; i++)
+	    readyList[i] = new List; 
 } 
 
 //----------------------------------------------------------------------
@@ -39,7 +40,8 @@ Scheduler::Scheduler()
 
 Scheduler::~Scheduler()
 { 
-    delete readyList; 
+	for (int i = 0; i < priority_num; i++)
+	    delete readyList[i]; 
 } 
 
 //----------------------------------------------------------------------
@@ -56,7 +58,14 @@ Scheduler::ReadyToRun (Thread *thread)
     DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
 
     thread->setStatus(READY);
-    readyList->Append((void *)thread);
+    readyList[thread->getprior()]->Append((void *)thread);
+}
+
+void
+Scheduler::ListPrepend (Thread *thread)
+{
+	DEBUG('t', "prepend  thread %s on ready list.\n", thread->getName());
+	readyList[thread->getprior()]->Prepend((void*)thread);
 }
 
 //----------------------------------------------------------------------
@@ -70,7 +79,13 @@ Scheduler::ReadyToRun (Thread *thread)
 Thread *
 Scheduler::FindNextToRun ()
 {
-    return (Thread *)readyList->Remove();
+	Thread *t;
+	for (int i = 0; i < priority_num; i++) {
+		t = readyList[i]->Remove();
+		if (t != NULL)
+			break;
+	}
+    return t;
 }
 
 //----------------------------------------------------------------------
@@ -115,7 +130,7 @@ Scheduler::Run (Thread *nextThread)
 
     SWITCH(oldThread, nextThread);
 
-	printf("work1 here!\n");
+	//printf("work1 here!\n");
     
     DEBUG('t', "Now in thread \"%s\"\n", currentThread->getName());
 
@@ -126,10 +141,10 @@ Scheduler::Run (Thread *nextThread)
     if (threadToBeDestroyed != NULL) {
         delete threadToBeDestroyed;
 	threadToBeDestroyed = NULL;
-		printf("work2 here!\n");
+		//printf("work2 here!\n");
     }
 
-	printf("work3 here!\n");
+	//printf("work3 here!\n");
     
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {		// if there is an address space
@@ -148,5 +163,6 @@ void
 Scheduler::Print()
 {
     printf("Ready list contents:\n");
-    readyList->Mapcar((VoidFunctionPtr) ThreadPrint);
+	for (int i = 0; i < priority_num; i++)
+	    readyList[i]->Mapcar((VoidFunctionPtr) ThreadPrint);
 }

@@ -44,16 +44,19 @@ int pick_tid()
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName)
+Thread::Thread(char* threadName, int _prior)
 {
     name = threadName;
-
+	prior = _prior;
 	tid = pick_tid();
 	uid = 1000;
+	time_slices = _prior + 1;
+
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
 	ThreadArray[tid] = this;
+
 #ifdef USER_PROGRAM
     space = NULL;
 #endif
@@ -109,10 +112,16 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
 	  tid, (int) func, (int*) arg);
     
     StackAllocate(func, arg);
+	
+	IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
-    scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
-					// are disabled!
+	if (this->getprior() < currentThread->getprior()) {
+		scheduler->ReadyToRun(currentThread);
+		scheduler->Run(this);
+	}
+	else 
+    	scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
+										// are disabled!
     (void) interrupt->SetLevel(oldLevel);
 }    
 
@@ -199,10 +208,14 @@ Thread::Yield ()
     
     DEBUG('t', "Yielding thread \"%d\"\n", gettid());
     
-    nextThread = scheduler->FindNextToRun();
+	nextThread = scheduler->FindNextToRun();
     if (nextThread != NULL) {
-	scheduler->ReadyToRun(this);
-	scheduler->Run(nextThread);
+		if (nextThread->getprior() <= this->getprior()) {
+			scheduler->ReadyToRun(this);
+			scheduler->Run(nextThread);
+		}
+		else 
+			scheduler->ListPrepend(nextThread);   // ***this is very important
     }
     (void) interrupt->SetLevel(oldLevel);
 }
@@ -237,7 +250,7 @@ Thread::Sleep ()
     DEBUG('t', "Sleeping thread \"%d\"\n", gettid());
 
     status = BLOCKED;
-    while ((nextThread = scheduler->FindNextToRun()) == NULL)
+	while ((nextThread = scheduler->FindNextToRun()) == NULL)
 	interrupt->Idle();	// no one to run, wait for an interrupt
         
     scheduler->Run(nextThread); // returns when we've been signalled

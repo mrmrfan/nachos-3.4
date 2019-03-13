@@ -89,7 +89,7 @@ ElevatorSelfTest () {
     ElevatorInspector *inspector = new ElevatorInspector();
     
 	// modified by fan
-	Thread *controller = new Thread("controller");
+	Thread *controller = new Thread("controller", 1);
     
     controller->Fork(ControllerTest, inspector);
     inspector->RiderTest();

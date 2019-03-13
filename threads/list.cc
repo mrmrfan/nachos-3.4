@@ -77,6 +77,7 @@ List::~List()
 void
 List::Append(void *item)
 {
+	DEBUG('t', "append an element\n");
     ListElement *element = new ListElement(item, 0);
 
     if (IsEmpty()) {		// list is empty
@@ -127,6 +128,7 @@ List::Prepend(void *item)
 void *
 List::Remove()
 {
+	DEBUG('t', "remove an element\n");
     return SortedRemove(NULL);  // Same as SortedRemove, but ignore the key
 }
 
