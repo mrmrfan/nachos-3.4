@@ -181,6 +181,7 @@ void
 Cleanup()
 {
     printf("\nCleaning up...\n");
+
 #ifdef NETWORK
     delete postOffice;
 #endif

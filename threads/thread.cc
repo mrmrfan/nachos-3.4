@@ -44,9 +44,9 @@ int pick_tid()
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName, int _prior)
+Thread::Thread(char* debugName, int _prior)
 {
-    name = threadName;
+    name = debugName;
 	prior = _prior;
 	tid = pick_tid();
 	uid = 1000;
@@ -265,7 +265,14 @@ Thread::Sleep ()
 //----------------------------------------------------------------------
 
 static void ThreadFinish()    { currentThread->Finish(); }
-static void InterruptEnable() { interrupt->Enable(); }
+static void InterruptEnable() 
+{ 
+	if (threadToBeDestroyed != NULL) {
+		delete threadToBeDestroyed;
+		threadToBeDestroyed = NULL;
+	}
+	interrupt->Enable(); 
+}
 void ThreadPrint(int arg){ Thread *t = (Thread *)arg; t->Print(); }
 
 // modified by fan
