@@ -276,3 +276,90 @@ List::Remove(void *item)
    //ASSERT(!IsInList(item));
 }
 
+//myListElem
+myListElem::myListElem(int _val) {
+    val = _val;
+	next = NULL;
+}
+
+// myList
+myList::myList() {
+    first = NULL;
+    last = NULL;
+    elemNum = 0;
+}
+myList::~myList() {
+    while (Remove() != -1);
+}
+void
+myList::Prepend(int a) {
+    myListElem *elem = new myListElem(a);
+    if (IsEmpty()) {		// list is empty
+	    first = elem;
+	    last = elem;
+	} else {			// else put it before first
+	    elem->next = first;
+		first = elem;
+	}																		
+	elemNum++;
+}
+void
+myList::Append(int a) {
+	myListElem *elem = new myListElem(a);    
+    if (IsEmpty()) {		// list is empty
+        first = elem;
+        last = elem;
+	} else {			// else put it after last
+	    last->next = elem;
+	    last = elem;
+	}
+	elemNum++;
+}
+int 
+myList::Remove() {
+	myListElem *elem = first;
+	int a;
+
+	if (IsEmpty())
+		return -1;
+	
+	a = first->val;
+	if (first == last) {
+		first = NULL;
+		last = NULL;
+	} else {
+		first = elem->next;
+	}
+	delete elem;
+	elemNum--;
+	return a;
+}
+void 
+myList::Remove(int a) {
+	myListElem *prev, *ptr;
+	int removed;
+
+	if (a == first->val) {
+		removed = Remove();
+		ASSERT(a == removed);
+	} else {
+		prev = first;
+		for (ptr = first->next; ptr != NULL; prev = ptr, ptr = ptr->next) {
+			if (a == ptr->val) {
+				prev->next = ptr->next;
+				if (prev->next == NULL)
+					last = prev;
+				delete ptr;
+				elemNum--;
+				break;
+			}
+		}
+		ASSERT(ptr != NULL);
+	}
+}
+bool 
+myList::IsEmpty() {
+	if (elemNum == 0)
+		return true;
+	return false;
+}

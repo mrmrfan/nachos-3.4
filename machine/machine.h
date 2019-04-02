@@ -25,6 +25,7 @@
 #include "utility.h"
 #include "translate.h"
 #include "disk.h"
+#include "list.h"
 
 // Definitions related to the size, and format of user memory
 
@@ -178,6 +179,9 @@ class Machine {
 
     TranslationEntry *tlb;		// this pointer should be considered 
 					// "read-only" to Nachos kernel code
+	int tlbStrategy;   // 0 for fifo    1 for nru
+	int tlbReplacePos;
+	myList* nruQueue;
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;

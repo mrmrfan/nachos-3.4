@@ -68,4 +68,27 @@ class List {
     int numInList;		// number of elements in list
 };
 
+class myListElem {
+  public:
+	myListElem(int _val);
+	myListElem* next;
+	int val;
+};
+
+class myList {
+ public:
+    myList();             // initialize
+    ~myList();            // deconstruct
+    void Prepend(int a);       // add the int to the front
+    void Append(int a);        // add the int to the end
+	void Remove(int a);   // remove a certain int
+	int Remove();        // remove and return the int in the front
+	bool IsEmpty();      // whether the list is empty or not
+				  
+ private:
+	myListElem* first;
+	myListElem* last;
+	int elemNum;
+};
+
 #endif // LIST_H
