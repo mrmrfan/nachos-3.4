@@ -75,11 +75,23 @@ ExceptionHandler(ExceptionType which)
 		}
 
 
-		printf("add virtual page %d to tlb[%d]\n", vpn, pos);
+		if (machine->pageTable[vpn].valid == 0) {
+			printf("physical page is not in the memory!\n");
+
+			int physPage = machine->getPhysicalPage(currentThread->space, vpn);
+			machine->pageTable[vpn].physicalPage = physPage;
+			machine->pageTable[vpn].valid = 1;						
+			printf("loading new physical page %d!\n", physPage);
+		}
+
+
+		printf("add virtual page %d, physical page %d to tlb[%d]\n", vpn, machine->pageTable[vpn].physicalPage, pos);
         machine->tlb[pos] = machine->pageTable[vpn];               // save the page entry to tlb[0]
 		
-		if (machine->tlb[pos].valid == 0) 
+		if (machine->tlb[pos].valid == 0) {
 			printf("something is going wrong!\n");
+		}
+
 	} else{
 	printf("Unexpected user mode exception %d %d\n", which, type);
 	ASSERT(FALSE);

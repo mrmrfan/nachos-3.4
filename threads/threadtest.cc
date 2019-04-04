@@ -16,6 +16,7 @@
 
 // testnum is set in main.cc
 int testnum = 1;
+extern void StartProcess(char *file);
 
 //----------------------------------------------------------------------
 // SimpleThread

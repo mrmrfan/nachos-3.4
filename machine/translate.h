@@ -42,4 +42,16 @@ class TranslationEntry {
 			// page is modified.
 };
 
+class AddrSpace;
+
+class PageEntry {
+  public:
+  	PageEntry(); 
+ 	bool allocated; 
+	int physicalPage;
+	int virtualPage;
+  	
+	AddrSpace *space;
+};
+
 #endif

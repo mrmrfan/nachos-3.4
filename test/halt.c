@@ -12,13 +12,14 @@
 
 #include "syscall.h"
 
-int A[100];
+int A[10];
+int a = 1, b = 1, c = 1;
 
 int
 main()
 {
 	int i;
-	for (i = 0; i < 100; i++)
+	for (i = 0; i < 10; i++)
 		A[i] = 1;
     Halt();
     /* not reached */

@@ -65,6 +65,15 @@ Machine::Machine(bool debug)
 	tlbStrategy = 1;          // default: fifo
 	
 	tlbReplacePos = 0;
+
+	physicalPageTable = new PageEntry[NumPhysPages];
+	for (int i = 0; i < NumPhysPages; i++) {
+		physicalPageTable[i].allocated = 0;
+		physicalPageTable[i].physicalPage = i;
+		physicalPageTable[i].virtualPage = -1;
+		physicalPageTable[i].space = NULL;
+	}
+
 #ifdef USE_TLB
     tlb = new TranslationEntry[TLBSize];
     for (i = 0; i < TLBSize; i++)
@@ -99,7 +108,55 @@ Machine::~Machine()
         delete [] tlb;
 	if (nruQueue != NULL) 
 		delete nruQueue;
+    delete [] physicalPageTable;
+
 }
+
+//int
+//Machine::getPhysicalPage(AddrSpace *space, int virtPage) 
+
+int
+Machine::getPhysicalPage(AddrSpace *space, int virtPage) 
+{
+	for (int i = 0; i < NumPhysPages; i++) {
+		if (physicalPageTable[i].allocated == 0) {
+			physicalPageTable[i].allocated = 1;
+			physicalPageTable[i].virtualPage = virtPage;
+			physicalPageTable[i].space = space;
+			return i;
+		}
+	}
+	
+	// memory is full
+	// always last  physicalPageTable[NumPhysPages-1]
+	PageEntry *pageEntry = &physicalPageTable[NumPhysPages-1];
+	ReplacePhysPage(pageEntry, virtPage, space);
+
+	return NumPhysPages - 1;
+}
+void 
+Machine::ReplacePhysPage(PageEntry *pageEntry, int virtPage, AddrSpace *space) 
+{
+	// write back
+	int physPage = pageEntry->physicalPage;
+	int oldVirtPage = pageEntry->virtualPage;
+	AddrSpace *oldSpace = pageEntry->space;
+
+	(oldSpace->swap)->WriteAt(&(machine->mainMemory[physPage*PageSize]), PageSize, oldVirtPage*PageSize+40);
+
+	// load
+	(space->swap)->ReadAt(&(machine->mainMemory[physPage*PageSize]), PageSize, virtPage*PageSize+40);
+	pageEntry->virtPage = virtPage;
+	pageEntry->space = space;
+}
+
+void
+Machine::freePhysicalPage(int physPage)
+{
+	physicalPageTable[physPage].allocated = 0;
+	physicalPageTable[physPage].space = NULL;
+}
+
 
 //----------------------------------------------------------------------
 // Machine::RaiseException

@@ -261,7 +261,15 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     if (writing)
 	entry->dirty = TRUE;
     *physAddr = pageFrame * PageSize + offset;
+	//printf("--------------------------------------%d\n", *physAddr);
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG('a', "phys addr = 0x%x\n", *physAddr);
     return NoException;
+}
+
+PageEntry::PageEntry() {
+	allocated = 0;
+	physicalPage = -1;
+	virtualPage = -1;
+	space = NULL;
 }

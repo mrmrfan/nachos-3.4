@@ -21,15 +21,17 @@
 //----------------------------------------------------------------------
 
 void
-StartProcess(char *filename)
+UserProcess(char *filename)
 {
-    OpenFile *executable = fileSystem->Open(filename);
-    AddrSpace *space;
+	printf("thread %s is running!\n", currentThread->getName());
+	OpenFile *executable = fileSystem->Open(filename);
+	AddrSpace *space;
 
     if (executable == NULL) {
 	printf("Unable to open file %s\n", filename);
 	return;
     }
+
     space = new AddrSpace(executable);    
     currentThread->space = space;
 
@@ -42,6 +44,16 @@ StartProcess(char *filename)
     ASSERT(FALSE);			// machine->Run never returns;
 					// the address space exits
 					// by doing the syscall "exit"
+}
+
+void
+StartProcess(char *filename) 
+{
+	Thread *t = new Thread("t", 1);
+	t->Fork(UserProcess, (void*)filename);
+	printf("start thread t!\n");
+
+	UserProcess(filename);
 }
 
 // Data structures needed for the console test.  Threads making

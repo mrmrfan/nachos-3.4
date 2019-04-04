@@ -133,7 +133,11 @@ class Machine {
 				// memory (at addr).  Return FALSE if a 
 				// correct translation couldn't be found.
     
-    ExceptionType Translate(int virtAddr, int* physAddr, int size,bool writing);
+	int getPhysicalPage(AddrSpace *space, int virtPage);      // allocate physical page
+	//int getPhysicalPage(int virtPage);
+	void freePhysicalPage(int physPage);
+    
+	ExceptionType Translate(int virtAddr, int* physAddr, int size,bool writing);
     				// Translate an address, and check for 
 				// alignment.  Set the use and dirty bits in 
 				// the translation entry appropriately,
@@ -176,6 +180,8 @@ class Machine {
 // space, stored in memory), there is only one TLB (implemented in hardware).
 // Thus the TLB pointer should be considered as *read-only*, although 
 // the contents of the TLB are free to be modified by the kernel software.
+
+	PageEntry *physicalPageTable;
 
     TranslationEntry *tlb;		// this pointer should be considered 
 					// "read-only" to Nachos kernel code
