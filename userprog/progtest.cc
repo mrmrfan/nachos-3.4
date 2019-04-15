@@ -49,9 +49,13 @@ UserProcess(char *filename)
 void
 StartProcess(char *filename) 
 {
-	Thread *t = new Thread("t", 1);
-	t->Fork(UserProcess, (void*)filename);
-	printf("start thread t!\n");
+//	Thread *t = new Thread("t", 1);
+//	t->Fork(UserProcess, (void*)filename);
+
+	//for (int i = 0; i < 1; i++) {
+	//	Thread *t1 = new Thread("t1", 1);
+	//	t1->Fork(UserProcess, (void*)filename);
+	//}
 
 	UserProcess(filename);
 }

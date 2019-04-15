@@ -64,11 +64,16 @@ AddrSpace::AddrSpace(OpenFile *executable)
 {
     NoffHeader noffH;
     unsigned int i, size;
-	OpenFile *swap;
 	char str[20];
 	
 	sprintf(str, "%d.swap", currentThread->gettid());
-	swap = fileSystem->Create(str);
+	if (!fileSystem->Create(str, 128*32)) {
+		ASSERT(0);
+	}
+	swap = fileSystem->Open(str);
+	
+	printf("exec file length: %d\n", executable->Length());
+	printf("swap file length: %d\n", swap->Length());
 
 	executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
@@ -86,6 +91,12 @@ AddrSpace::AddrSpace(OpenFile *executable)
 	printf("inFileAddr:%d\n", noffH.initData.inFileAddr);
 	printf("size:%d\n", noffH.initData.size);
 
+	printf("uninitData:\n");
+	printf("virtualAddr:%d\n", noffH.uninitData.virtualAddr);
+	printf("inFileAddr:%d\n", noffH.uninitData.inFileAddr);
+	printf("size:%d\n", noffH.uninitData.size);
+
+
 
 // how big is address space?
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
@@ -93,6 +104,12 @@ AddrSpace::AddrSpace(OpenFile *executable)
 						// to leave room for the stack
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
+
+	//char cpSpace;
+	//for (int p = 0; p < size; p++) {
+	//	executable->ReadAt(&cpSpace, 1, p);
+	//	swap->WriteAt(&cpSpace, 1, p);
+	//}
 
     //ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
@@ -106,12 +123,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
 	
-	int page = machine->getPhysicalPage(this, i);
+	int ppn = machine->getPhysicalPage(this, i, false);
+	DEBUG('a', "this is a mark!\n");
 //	int page = machine->getPhysicalPage(i);
-	pageTable[i].physicalPage = page;
-	pageTable[i].valid = FALSE;
-	if (page >= 0)
+	pageTable[i].physicalPage = ppn;
 	pageTable[i].valid = TRUE;
+	//if (page >= 0)
+	//pageTable[i].valid = TRUE;
 
 /*	pageTable[i].physicalPage = i;
 	pageTable[i].valid = TRUE;
@@ -131,6 +149,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
 	int p, virtAddr, physAddr;
 	int virtPage, Offset;
 	int tmpSpace;
+
+	DEBUG('a', "uninit data, at 0x%x, size %d\n", noffH.uninitData.virtualAddr, noffH.uninitData.size);
+
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
@@ -141,7 +162,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			Offset = virtAddr % PageSize;
 			physAddr = pageTable[virtPage].physicalPage * PageSize + Offset;
 			executable->ReadAt(&(machine->mainMemory[physAddr]), 1, noffH.code.inFileAddr+p);
-			swap->WriteAt(&(machine->mainMemory[physAddr]), 1, noffH.code.inFileAddr+p);
+			swap->WriteAt(&(machine->mainMemory[physAddr]), 1, noffH.code.virtualAddr+p);
 		}
 //		printf("virtual address: %d\n", noffH.code.virtualAddr);
 //		printf("physical address: %d\n", physAddr);
@@ -157,9 +178,12 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			Offset = virtAddr % PageSize;
 			physAddr = pageTable[virtPage].physicalPage + Offset;
 			executable->ReadAt(&(machine->mainMemory[physAddr]), 1, noffH.initData.inFileAddr+p);								
-			swap->WriteAt(&(machine->mainMemory[physAddr]), 1, noffH.initData.inFileAddr+p);
+			swap->WriteAt(&(machine->mainMemory[physAddr]), 1, noffH.initData.virtualAddr+p);
 		}
     }
+
+	printf("swap file length: %d\n", swap->Length());
+
 
 }
 
@@ -235,4 +259,12 @@ void AddrSpace::RestoreState()
 {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+}
+
+void AddrSpace::ClearEntry(int vpn) {
+	pageTable[vpn].valid = 0;
+	pageTable[vpn].physicalPage = 0;
+	pageTable[vpn].use = 0;
+	pageTable[vpn].readOnly = 0;
+	pageTable[vpn].dirty = 0;
 }

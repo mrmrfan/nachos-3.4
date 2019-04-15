@@ -31,12 +31,16 @@ class OpenFile {
     OpenFile(int f) { file = f; currentOffset = 0; }	// open the file
     ~OpenFile() { Close(file); }			// close the file
 
-    int ReadAt(char *into, int numBytes, int position) { 
+    int ReadAt(char *into, int numBytes, int position) {
+        //DEBUG('a', "readat error0  position:%d\n", position);
+		
     		Lseek(file, position, 0); 
+        //DEBUG('a', "readat error1\n");
+
 		return ReadPartial(file, into, numBytes); 
 		}	
     int WriteAt(char *from, int numBytes, int position) { 
-    		Lseek(file, position, 0); 
+    		Lseek(file, position, 0);
 		WriteFile(file, from, numBytes); 
 		return numBytes;
 		}	

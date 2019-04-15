@@ -74,6 +74,10 @@ Machine::Machine(bool debug)
 		physicalPageTable[i].space = NULL;
 	}
 
+	pageQueue = new myList;
+	for (int i = 0; i < NumPhysPages; i++)
+		pageQueue->Append(i);
+
 #ifdef USE_TLB
     tlb = new TranslationEntry[TLBSize];
     for (i = 0; i < TLBSize; i++)
@@ -116,8 +120,13 @@ Machine::~Machine()
 //Machine::getPhysicalPage(AddrSpace *space, int virtPage) 
 
 int
-Machine::getPhysicalPage(AddrSpace *space, int virtPage) 
+Machine::getPhysicalPage(AddrSpace *space, int virtPage, bool load) 
 {
+	if (space->swap != NULL)
+		DEBUG('a', "swap file exists!\n");
+	else
+		DEBUG('a', "swap file not exists!\n");
+
 	for (int i = 0; i < NumPhysPages; i++) {
 		if (physicalPageTable[i].allocated == 0) {
 			physicalPageTable[i].allocated = 1;
@@ -128,25 +137,61 @@ Machine::getPhysicalPage(AddrSpace *space, int virtPage)
 	}
 	
 	// memory is full
-	// always last  physicalPageTable[NumPhysPages-1]
-	PageEntry *pageEntry = &physicalPageTable[NumPhysPages-1];
-	ReplacePhysPage(pageEntry, virtPage, space);
+	// find the first not itself
+	//for (int i = 0; i < NumPhysPages; i++) {
+	//	if (physicalPageTable[i].space != space) 
+	//		ReplacePhysPage(&physicalPageTable[i], virtPage, space);
+	//}
+
+	// find the last
+    ReplacePhysPage(&physicalPageTable[NumPhysPages - 1], virtPage, space, load);
+
+	// fifo
+//	int ppn = pageQueue->Remove();
+//	pageQueue->Append(ppn);
+//	ReplacePhysPage(&physicalPageTable[ppn], virtPage, space, load);
 
 	return NumPhysPages - 1;
 }
 void 
-Machine::ReplacePhysPage(PageEntry *pageEntry, int virtPage, AddrSpace *space) 
+Machine::ReplacePhysPage(PageEntry *pageEntry, int vpn, AddrSpace *space, bool load) 
 {
 	// write back
-	int physPage = pageEntry->physicalPage;
-	int oldVirtPage = pageEntry->virtualPage;
+	int ppn = pageEntry->physicalPage;
+	int oldVpn = pageEntry->virtualPage;
 	AddrSpace *oldSpace = pageEntry->space;
 
-	(oldSpace->swap)->WriteAt(&(machine->mainMemory[physPage*PageSize]), PageSize, oldVirtPage*PageSize+40);
+	DEBUG('a', "\nthread name: %s\n", currentThread->getName());
+	DEBUG('a', "virtual page: %d\n\n", oldVpn);
+
+	if (oldSpace->swap == NULL) 
+		printf("oldSpace's swap not exists error!\n");
+
+	DEBUG('a', "stop 0\n");
+	if (oldSpace->GetDirtyBit(oldVpn)) {
+//		DEBUG('a', "\nthread name: %s\n", currentThread->getName());
+//		DEBUG('a', "virtual page: %d\n\n", oldVpn);
+		(oldSpace->swap)->WriteAt(&(machine->mainMemory[ppn*PageSize]), PageSize, oldVpn*PageSize);
+	    DEBUG('a', "write back fine.\n");
+	}
+	DEBUG('a', "stop 1\n");
+	oldSpace->ClearEntry(oldVpn);
 
 	// load
-	(space->swap)->ReadAt(&(machine->mainMemory[physPage*PageSize]), PageSize, virtPage*PageSize+40);
-	pageEntry->virtPage = virtPage;
+	if (load) {
+		DEBUG('a', "\nthread name: %s\n", currentThread->getName());
+		DEBUG('a', "physical page: %d  virtual page: %d\n\n", ppn, vpn);
+
+		if (space->swap == NULL)
+			DEBUG('a', "something is going wrong!\n");
+
+		DEBUG('a', "work here!\n");
+
+		DEBUG('a', "file length: %d", (space->swap)->Length());
+		(space->swap)->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, vpn*PageSize);
+        DEBUG('a', "load fine.\n");
+	}
+	pageEntry->virtualPage = vpn;
 	pageEntry->space = space;
 }
 

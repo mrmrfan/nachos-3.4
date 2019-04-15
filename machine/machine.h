@@ -133,7 +133,8 @@ class Machine {
 				// memory (at addr).  Return FALSE if a 
 				// correct translation couldn't be found.
     
-	int getPhysicalPage(AddrSpace *space, int virtPage);      // allocate physical page
+	int getPhysicalPage(AddrSpace *space, int virtPage, bool load);      // allocate physical page
+	void ReplacePhysPage(PageEntry *pageEntry, int vpn, AddrSpace* space, bool load);
 	//int getPhysicalPage(int virtPage);
 	void freePhysicalPage(int physPage);
     
@@ -188,6 +189,7 @@ class Machine {
 	int tlbStrategy;   // 0 for fifo    1 for nru
 	int tlbReplacePos;
 	myList* nruQueue;
+	myList* pageQueue;
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;

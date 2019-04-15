@@ -74,13 +74,14 @@ ExceptionHandler(ExceptionType which)
 			machine->nruQueue->Prepend(pos);
 		}
 
-
+		// real page fault
 		if (machine->pageTable[vpn].valid == 0) {
 			printf("physical page is not in the memory!\n");
 
-			int physPage = machine->getPhysicalPage(currentThread->space, vpn);
+			int physPage = machine->getPhysicalPage(currentThread->space, vpn, true);
 			machine->pageTable[vpn].physicalPage = physPage;
-			machine->pageTable[vpn].valid = 1;						
+			machine->pageTable[vpn].valid = 1;					
+			machine->pageTable[vpn].dirty = 0;
 			printf("loading new physical page %d!\n", physPage);
 		}
 
