@@ -47,6 +47,18 @@
 //	are in machine.h.
 //----------------------------------------------------------------------
 
+void 
+PrintAllPageTable()
+{
+	for (int i = 0; i < ThreadMaxNum; i++) {
+		Thread* t = ThreadArray[i];
+		if (t != NULL && t->space != NULL) {
+			printf("thread %s valid page num: %d\n", t->getName(), t->space->validPageCount());
+		}
+	}
+		
+}
+
 void
 ExceptionHandler(ExceptionType which)
 {
@@ -56,13 +68,19 @@ ExceptionHandler(ExceptionType which)
 	DEBUG('a', "Shutdown, initiated by user program.\n");
    	interrupt->Halt();
     } else if (which == PageFaultException) {
-        printf("handling tlb miss!\n");
-
-        // tlb miss
+        
+		// tlb miss
         int virtAddr = machine->ReadRegister(BadVAddrReg);
         unsigned int vpn = (unsigned) virtAddr / PageSize;
 		int pos;
 		
+        printf("handling tlb miss, addr %d!\n", virtAddr);
+		printf("\nthread %s is running!\n",currentThread->getName());
+		PrintAllThread();
+		PrintAllPageTable();
+		printf("\n");
+
+
 		//fifo
 		if (machine->tlbStrategy == 0) {
 			pos = machine->tlbReplacePos;
@@ -78,21 +96,22 @@ ExceptionHandler(ExceptionType which)
 		if (machine->pageTable[vpn].valid == 0) {
 			printf("physical page is not in the memory!\n");
 
-			int physPage = machine->getPhysicalPage(currentThread->space, vpn, true);
+			int physPage = machine->getPhysicalPage(currentThread->space, vpn);
 			machine->pageTable[vpn].physicalPage = physPage;
 			machine->pageTable[vpn].valid = 1;					
 			machine->pageTable[vpn].dirty = 0;
+			//machine->pageTable[vpn].virtualPage = vpn;
 			printf("loading new physical page %d!\n", physPage);
 		}
 
 
 		printf("add virtual page %d, physical page %d to tlb[%d]\n", vpn, machine->pageTable[vpn].physicalPage, pos);
         machine->tlb[pos] = machine->pageTable[vpn];               // save the page entry to tlb[0]
-		
+	
 		if (machine->tlb[pos].valid == 0) {
+			printf("tlb[%d] is not valid.\n", pos);
 			printf("something is going wrong!\n");
-		}
-
+		} 
 	} else{
 	printf("Unexpected user mode exception %d %d\n", which, type);
 	ASSERT(FALSE);

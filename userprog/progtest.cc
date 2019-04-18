@@ -47,6 +47,20 @@ UserProcess(char *filename)
 }
 
 void
+StartProcess(char *filename)
+{
+	Thread *t1 = new Thread("t1", 0);
+	Thread *t2 = new Thread("t2", 0);
+
+	t1->Fork(UserProcess, (void*)filename);
+	t1->Suspend();
+	t2->Fork(UserProcess, (void*)filename);
+	t1->Resume();
+	UserProcess(filename);
+}
+
+/*
+void
 StartProcess(char *filename) 
 {
 //	Thread *t = new Thread("t", 1);
@@ -59,6 +73,7 @@ StartProcess(char *filename)
 
 	UserProcess(filename);
 }
+*/
 
 // Data structures needed for the console test.  Threads making
 // I/O requests wait on a Semaphore to delay until the I/O completes.

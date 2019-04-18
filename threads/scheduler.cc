@@ -56,9 +56,13 @@ void
 Scheduler::ReadyToRun (Thread *thread)
 {
     DEBUG('t', "Putting thread %s on ready list.\n", thread->getName());
-
-    thread->setStatus(READY);
-    readyList[thread->getprior()]->Append((void *)thread);
+	
+	if (thread->isStatus(BLOCKED_SUSPENDED))
+		thread->setStatus(READY_SUSPENDED);
+	else {   // RUNNING or BLOCKED or READY_SUSPENDED 
+		thread->setStatus(READY);
+        readyList[thread->getprior()]->Append((void *)thread);
+	}
 }
 
 void
@@ -82,8 +86,12 @@ Scheduler::FindNextToRun ()
 	Thread *t;
 	for (int i = 0; i < priority_num; i++) {
 		t = readyList[i]->Remove();
-		if (t != NULL)
-			break;
+		if (t != NULL) {
+			if (t->isStatus(READY))
+				break;
+			else if (t->isStatus(READY_SUSPENDED))
+				continue;
+		}
 	}
     return t;
 }

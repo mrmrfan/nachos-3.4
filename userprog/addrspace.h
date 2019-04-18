@@ -33,6 +33,7 @@ class AddrSpace {
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch 
 
+	int validPageCount();
 	void ClearEntry(int vpn);
 	bool GetDirtyBit(int vpn) {
 		return pageTable[vpn].dirty;

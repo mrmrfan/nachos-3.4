@@ -185,7 +185,7 @@ Machine::WriteMem(int addr, int size, int value)
 
 ExceptionType
 Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
-{
+{	
     int i;
     unsigned int vpn, offset;
     TranslationEntry *entry;
@@ -225,18 +225,22 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 	}
 	entry = &pageTable[vpn];
     } else {
-        for (entry = NULL, i = 0; i < TLBSize; i++)
+        for (entry = NULL, i = 0; i < TLBSize; i++) {
+//			if (i == 3) {
+//				printf("tlb[%d] valid: %d, tlb[%d] vpn: %d, vpn: %d\n", i, tlb[i].valid, i, tlb[i].virtualPage, vpn);
+//			}
     	    if (tlb[i].valid && (tlb[i].virtualPage == vpn)) {
-		entry = &tlb[i];			// FOUND!
+				entry = &tlb[i];			// FOUND!
 
-		if (tlbStrategy == 1) {
-			nruQueue->Remove(i);
-			nruQueue->Append(i);
+				if (tlbStrategy == 1) {
+					nruQueue->Remove(i);
+					nruQueue->Append(i);
+				}
+
+//				printf("hit tlb[%d]\n", i);
+				break;
+		    }
 		}
-
-//		printf("hit tlb[%d]\n", i);
-		break;
-	    }
 	if (entry == NULL) {				// not found
   	   	DEBUG('a', "*** no valid TLB entry found for this virtual page!\n");
 		return PageFaultException;		// really, this is a TLB fault,

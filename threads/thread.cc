@@ -265,6 +265,7 @@ Thread::Sleep ()
 //----------------------------------------------------------------------
 
 static void ThreadFinish()    { currentThread->Finish(); }
+
 static void InterruptEnable() 
 { 
 	if (threadToBeDestroyed != NULL) {
@@ -340,6 +341,29 @@ Thread::StackAllocate (VoidFunctionPtr func, void *arg)
 
 #ifdef USER_PROGRAM
 #include "machine.h"
+
+void
+Thread::Suspend()  
+{
+	if (status == READY) 
+		status = READY_SUSPENDED;
+	else if (status == BLOCKED)
+		status = BLOCKED_SUSPENDED;
+
+	machine->freePhysPages(space);
+}
+
+void 
+Thread::Resume()
+{
+	if (status == READY_SUSPENDED) 
+		scheduler->ReadyToRun(this);
+	else if (status == BLOCKED_SUSPENDED)
+		status = BLOCKED;
+}
+
+
+
 
 //----------------------------------------------------------------------
 // Thread::SaveUserState

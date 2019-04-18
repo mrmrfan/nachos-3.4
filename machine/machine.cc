@@ -116,11 +116,8 @@ Machine::~Machine()
 
 }
 
-//int
-//Machine::getPhysicalPage(AddrSpace *space, int virtPage) 
-
 int
-Machine::getPhysicalPage(AddrSpace *space, int virtPage, bool load) 
+Machine::getPhysicalPage(AddrSpace *space, int vpn) 
 {
 	if (space->swap != NULL)
 		DEBUG('a', "swap file exists!\n");
@@ -130,21 +127,16 @@ Machine::getPhysicalPage(AddrSpace *space, int virtPage, bool load)
 	for (int i = 0; i < NumPhysPages; i++) {
 		if (physicalPageTable[i].allocated == 0) {
 			physicalPageTable[i].allocated = 1;
-			physicalPageTable[i].virtualPage = virtPage;
+			physicalPageTable[i].virtualPage = vpn;
 			physicalPageTable[i].space = space;
+        	(space->swap)->ReadAt(&(machine->mainMemory[i*PageSize]), PageSize, vpn*PageSize);
+
 			return i;
 		}
 	}
 	
-	// memory is full
-	// find the first not itself
-	//for (int i = 0; i < NumPhysPages; i++) {
-	//	if (physicalPageTable[i].space != space) 
-	//		ReplacePhysPage(&physicalPageTable[i], virtPage, space);
-	//}
-
 	// find the last
-    ReplacePhysPage(&physicalPageTable[NumPhysPages - 1], virtPage, space, load);
+    ReplacePhysPage(&physicalPageTable[NumPhysPages - 1], vpn, space);
 
 	// fifo
 //	int ppn = pageQueue->Remove();
@@ -154,43 +146,30 @@ Machine::getPhysicalPage(AddrSpace *space, int virtPage, bool load)
 	return NumPhysPages - 1;
 }
 void 
-Machine::ReplacePhysPage(PageEntry *pageEntry, int vpn, AddrSpace *space, bool load) 
+Machine::ReplacePhysPage(PageEntry *pageEntry, int vpn, AddrSpace *space) 
 {
 	// write back
 	int ppn = pageEntry->physicalPage;
 	int oldVpn = pageEntry->virtualPage;
 	AddrSpace *oldSpace = pageEntry->space;
 
-	DEBUG('a', "\nthread name: %s\n", currentThread->getName());
-	DEBUG('a', "virtual page: %d\n\n", oldVpn);
-
-	if (oldSpace->swap == NULL) 
-		printf("oldSpace's swap not exists error!\n");
-
-	DEBUG('a', "stop 0\n");
 	if (oldSpace->GetDirtyBit(oldVpn)) {
 //		DEBUG('a', "\nthread name: %s\n", currentThread->getName());
 //		DEBUG('a', "virtual page: %d\n\n", oldVpn);
-		(oldSpace->swap)->WriteAt(&(machine->mainMemory[ppn*PageSize]), PageSize, oldVpn*PageSize);
-	    DEBUG('a', "write back fine.\n");
+	(oldSpace->swap)->WriteAt(&(machine->mainMemory[ppn*PageSize]), PageSize, oldVpn*PageSize);
+	DEBUG('a', "write back fine.\n");
 	}
-	DEBUG('a', "stop 1\n");
+
 	oldSpace->ClearEntry(oldVpn);
 
 	// load
-	if (load) {
-		DEBUG('a', "\nthread name: %s\n", currentThread->getName());
-		DEBUG('a', "physical page: %d  virtual page: %d\n\n", ppn, vpn);
+	DEBUG('a', "\nthread name: %s\n", currentThread->getName());
+	DEBUG('a', "physical page: %d  virtual page: %d\n\n", ppn, vpn);
 
-		if (space->swap == NULL)
-			DEBUG('a', "something is going wrong!\n");
-
-		DEBUG('a', "work here!\n");
-
-		DEBUG('a', "file length: %d", (space->swap)->Length());
-		(space->swap)->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, vpn*PageSize);
-        DEBUG('a', "load fine.\n");
-	}
+	DEBUG('a', "file length: %d", (space->swap)->Length());
+	(space->swap)->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, vpn*PageSize);
+    DEBUG('a', "load fine.\n");
+	
 	pageEntry->virtualPage = vpn;
 	pageEntry->space = space;
 }
@@ -200,6 +179,25 @@ Machine::freePhysicalPage(int physPage)
 {
 	physicalPageTable[physPage].allocated = 0;
 	physicalPageTable[physPage].space = NULL;
+}
+
+void 
+Machine::freePhysPages(AddrSpace* space)
+{
+	int vpn;
+
+	for (int i = 0; i < NumPhysPages; i++) {
+		if (physicalPageTable[i].space == space) {
+			vpn = physicalPageTable[i].virtualPage;
+		    if (space->GetDirtyBit(vpn)) {
+				(space->swap)->WriteAt(&(machine->mainMemory[i*PageSize]), PageSize, vpn*PageSize);
+				DEBUG('a', "write back fine.\n");
+			}
+
+			freePhysicalPage(i);
+		    space->ClearEntry(vpn);
+		}
+	}
 }
 
 

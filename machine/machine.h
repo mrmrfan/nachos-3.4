@@ -133,10 +133,10 @@ class Machine {
 				// memory (at addr).  Return FALSE if a 
 				// correct translation couldn't be found.
     
-	int getPhysicalPage(AddrSpace *space, int virtPage, bool load);      // allocate physical page
-	void ReplacePhysPage(PageEntry *pageEntry, int vpn, AddrSpace* space, bool load);
-	//int getPhysicalPage(int virtPage);
+	int getPhysicalPage(AddrSpace *space, int vpn);      // allocate physical page
+	void ReplacePhysPage(PageEntry *pageEntry, int vpn, AddrSpace* space);
 	void freePhysicalPage(int physPage);
+	void freePhysPages(AddrSpace* space);
     
 	ExceptionType Translate(int virtAddr, int* physAddr, int size,bool writing);
     				// Translate an address, and check for 

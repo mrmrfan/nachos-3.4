@@ -66,15 +66,6 @@ AddrSpace::AddrSpace(OpenFile *executable)
     unsigned int i, size;
 	char str[20];
 	
-	sprintf(str, "%d.swap", currentThread->gettid());
-	if (!fileSystem->Create(str, 128*32)) {
-		ASSERT(0);
-	}
-	swap = fileSystem->Open(str);
-	
-	printf("exec file length: %d\n", executable->Length());
-	printf("swap file length: %d\n", swap->Length());
-
 	executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
@@ -91,13 +82,6 @@ AddrSpace::AddrSpace(OpenFile *executable)
 	printf("inFileAddr:%d\n", noffH.initData.inFileAddr);
 	printf("size:%d\n", noffH.initData.size);
 
-	printf("uninitData:\n");
-	printf("virtualAddr:%d\n", noffH.uninitData.virtualAddr);
-	printf("inFileAddr:%d\n", noffH.uninitData.inFileAddr);
-	printf("size:%d\n", noffH.uninitData.size);
-
-
-
 // how big is address space?
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size 
 			+ UserStackSize;	// we need to increase the size
@@ -105,86 +89,59 @@ AddrSpace::AddrSpace(OpenFile *executable)
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-	//char cpSpace;
-	//for (int p = 0; p < size; p++) {
-	//	executable->ReadAt(&cpSpace, 1, p);
-	//	swap->WriteAt(&cpSpace, 1, p);
-	//}
-
-    //ASSERT(numPages <= NumPhysPages);		// check we're not trying
-						// to run anything too big --
-						// at least until we have
-						// virtual memory
+	sprintf(str, "%d.swap", currentThread->gettid());
+	if (!fileSystem->Create(str, size)) {
+		ASSERT(0);
+	}	
+	swap = fileSystem->Open(str);
 
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
-// first, set up the translation 
+	
+	// first, set up the translation 
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
-	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	
-	int ppn = machine->getPhysicalPage(this, i, false);
-	DEBUG('a', "this is a mark!\n");
-//	int page = machine->getPhysicalPage(i);
-	pageTable[i].physicalPage = ppn;
-	pageTable[i].valid = TRUE;
-	//if (page >= 0)
-	//pageTable[i].valid = TRUE;
-
-/*	pageTable[i].physicalPage = i;
-	pageTable[i].valid = TRUE;
-*/
+	pageTable[i].virtualPage = i;
+	pageTable[i].physicalPage = -1;
+	pageTable[i].valid = FALSE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
 	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
 					// a separate page, we could set its 
 					// pages to be read-only
     }
-    
+   
+
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
 //    bzero(machine->mainMemory, size);
 
 // then, copy in the code and data segments into memory
-	int p, virtAddr, physAddr;
-	int virtPage, Offset;
-	int tmpSpace;
-
 	DEBUG('a', "uninit data, at 0x%x, size %d\n", noffH.uninitData.virtualAddr, noffH.uninitData.size);
 
+	int p;
     if (noffH.code.size > 0) {
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
-			noffH.code.virtualAddr, noffH.code.size);
+		noffH.code.virtualAddr, noffH.code.size);
 
 		for (p = 0; p < noffH.code.size; p++) {
-			virtAddr = noffH.code.virtualAddr + p;
-			virtPage = virtAddr / PageSize;
-			Offset = virtAddr % PageSize;
-			physAddr = pageTable[virtPage].physicalPage * PageSize + Offset;
-			executable->ReadAt(&(machine->mainMemory[physAddr]), 1, noffH.code.inFileAddr+p);
-			swap->WriteAt(&(machine->mainMemory[physAddr]), 1, noffH.code.virtualAddr+p);
+			char c;
+			executable->ReadAt(&c, 1, noffH.code.inFileAddr+p);
+			swap->WriteAt(&c, 1, noffH.code.virtualAddr+p);
 		}
-//		printf("virtual address: %d\n", noffH.code.virtualAddr);
-//		printf("physical address: %d\n", physAddr);
-//		printf("work here!\n");
-    }
+	}
+
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
 		
 		for (p = 0; p < noffH.initData.size; p++) {
-			virtAddr = noffH.initData.virtualAddr + p;
-			virtPage = virtAddr / PageSize;
-			Offset = virtAddr % PageSize;
-			physAddr = pageTable[virtPage].physicalPage + Offset;
-			executable->ReadAt(&(machine->mainMemory[physAddr]), 1, noffH.initData.inFileAddr+p);								
-			swap->WriteAt(&(machine->mainMemory[physAddr]), 1, noffH.initData.virtualAddr+p);
+			char c;
+           	executable->ReadAt(&c, 1, noffH.initData.inFileAddr+p);
+			swap->WriteAt(&c, 1, noffH.initData.virtualAddr+p);
+
 		}
-    }
-
-	printf("swap file length: %d\n", swap->Length());
-
-
+	}
 }
 
 //----------------------------------------------------------------------
@@ -210,6 +167,19 @@ AddrSpace::~AddrSpace()
 //	will be saved/restored into the currentThread->userRegisters
 //	when this thread is context switched out.
 //----------------------------------------------------------------------
+
+int
+AddrSpace::validPageCount()
+{
+	int cnt = 0;
+
+	for (int i = 0; i < numPages; i++) {
+		if (pageTable[i].valid == 1)	
+			cnt++;
+	}
+
+	return cnt;
+}
 
 void
 AddrSpace::InitRegisters()
@@ -263,7 +233,7 @@ void AddrSpace::RestoreState()
 
 void AddrSpace::ClearEntry(int vpn) {
 	pageTable[vpn].valid = 0;
-	pageTable[vpn].physicalPage = 0;
+	pageTable[vpn].physicalPage = -1;
 	pageTable[vpn].use = 0;
 	pageTable[vpn].readOnly = 0;
 	pageTable[vpn].dirty = 0;

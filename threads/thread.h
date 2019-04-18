@@ -58,7 +58,7 @@
 
 
 // Thread state
-enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED };
+enum ThreadStatus { JUST_CREATED, RUNNING, READY, BLOCKED, READY_SUSPENDED, BLOCKED_SUSPENDED };
 
 // external function, dummy routine whose sole job is to call Thread::Print
 extern void ThreadPrint(int arg);	 
@@ -98,7 +98,7 @@ class Thread {
     void Sleep();  				// Put the thread to sleep and 
 						// relinquish the processor
     void Finish();  				// The thread is done executing
-    
+
     void CheckOverflow();   			// Check if thread has 
 						// overflowed its stack
     void setStatus(ThreadStatus st) { status = st; }
@@ -110,6 +110,12 @@ class Thread {
     char* getName() { return (name); }
 	int getprior() { return prior; }
 	int gettime_slices() { return time_slices; }
+
+	bool isStatus(ThreadStatus st) {
+		if (status == st)
+			return true;
+		return false;
+	}
     
 	void Print() { 
 		printf("tid:%d uid:%d name:%s prior:%d status:", tid, uid, name, prior);
@@ -119,7 +125,11 @@ class Thread {
 			printf("%s\n", "RUNNING");
 		else if (status == BLOCKED)
 			printf("%s\n", "BLOCKED");
-		else
+		else if (status == READY_SUSPENDED)
+			printf("%s\n", "READY_SUSPENDED");
+		else if (status == BLOCKED_SUSPENDED)
+			printf("%s\n", "BLOCKED_SUSPENDED");
+		else 
 			printf("%s\n", "READY");
 		}
 
@@ -148,6 +158,8 @@ class Thread {
     int userRegisters[NumTotalRegs];	// user-level CPU register state
 
   public:
+  	void Suspend();
+	void Resume();
     void SaveUserState();		// save user-level register state
     void RestoreUserState();		// restore user-level register state
 
