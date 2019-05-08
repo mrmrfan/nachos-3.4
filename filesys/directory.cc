@@ -90,9 +90,16 @@ Directory::WriteBack(OpenFile *file)
 int
 Directory::FindIndex(char *name)
 {
+	char *Name = new char[20];
+
     for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen))
-	    return i;
+        if (table[i].inUse) {
+			fileSystem->nameFile->ReadAt(Name, table[i].nameLen, table[i].namePos);
+			if (!strncmp(Name, name, 20))
+				return i;
+		}
+
+	delete Name;
     return -1;		// name not in directory
 }
 
@@ -108,7 +115,20 @@ Directory::FindIndex(char *name)
 int
 Directory::Find(char *name)
 {
-    int i = FindIndex(name);
+    int i, j;
+	int pos;
+	char *Name = new char[24];
+	
+	pos = -1;
+	for (j = 0; name[j] != NULL; j++)
+		if (name[j] == '/')
+			pos = j;
+	for (j = 0; name[j+pos+1] != NULL; j++)
+		Name[j] = name[j+pos+1];
+	Name[j] = '\0';
+
+	i = FindIndex(Name);
+	delete Name;
 
     if (i != -1)
 	return table[i].sector;
@@ -128,17 +148,40 @@ Directory::Find(char *name)
 
 bool
 Directory::Add(char *name, int newSector)
-{ 
-    if (FindIndex(name) != -1)
-	return FALSE;
+{
+	int nameFilePos;
+    int j;
+	int pos;
+	char *Name = new char[24];
+	
+	pos = -1;
+	for (j = 0; name[j] != NULL; j++)	
+		if (name[j] == '/')
+			pos = j;
+	for (j = 0; name[j+pos+1] != NULL; j++)
+	    Name[j] = name[j+pos+1];
+	Name[j] = '\0';
+
+    if (FindIndex(Name) != -1) {
+		delete Name;
+		return FALSE;
+	}
 
     for (int i = 0; i < tableSize; i++)
         if (!table[i].inUse) {
             table[i].inUse = TRUE;
-            strncpy(table[i].name, name, FileNameMaxLen); 
+
+			fileSystem->nameFile->ReadAt((char*)&nameFilePos, (int)(sizeof(int)), 0);
+			table[i].namePos = nameFilePos;
+			table[i].nameLen = 20;
+			nameFilePos += 20;
+			fileSystem->nameFile->WriteAt((char*)&nameFilePos, (int)(sizeof(int)), 0);
+			fileSystem->nameFile->WriteAt(Name, table[i].nameLen, table[i].namePos);
             table[i].sector = newSector;
+			delete Name;
         return TRUE;
 	}
+	delete Name;
     return FALSE;	// no space.  Fix when we have extensible files.
 }
 
@@ -153,7 +196,20 @@ Directory::Add(char *name, int newSector)
 bool
 Directory::Remove(char *name)
 { 
-    int i = FindIndex(name);
+    int i, j;
+	int pos;
+	char *Name = new char[24];
+
+	pos = -1;
+	for (j = 0; name[j] != NULL; j++)
+		if (name[j] == '/')
+			pos = j;
+	for (j = 0; name[j+pos+1] != NULL; j++)
+		Name[j] = name[j+pos+1];
+	Name[j] = '\0';
+	
+	i = FindIndex(Name);
+	delete Name;
 
     if (i == -1)
 	return FALSE; 		// name not in directory
@@ -169,9 +225,15 @@ Directory::Remove(char *name)
 void
 Directory::List()
 {
+   char *Name = new char[20];
    for (int i = 0; i < tableSize; i++)
-	if (table[i].inUse)
-	    printf("%s\n", table[i].name);
+	if (table[i].inUse) {
+	    fileSystem->nameFile->ReadAt(Name, table[i].nameLen, table[i].namePos);
+		printf("Name: %s\n", Name);
+	}
+
+
+   delete Name;
 }
 
 //----------------------------------------------------------------------
@@ -184,14 +246,67 @@ void
 Directory::Print()
 { 
     FileHeader *hdr = new FileHeader;
+	char *Name = new char[20];
 
     printf("Directory contents:\n");
     for (int i = 0; i < tableSize; i++)
 	if (table[i].inUse) {
-	    printf("Name: %s, Sector: %d\n", table[i].name, table[i].sector);
+		fileSystem->nameFile->ReadAt(Name, table[i].nameLen, table[i].namePos);
+
+	    printf("Name: %s, Sector: %d\n", Name, table[i].sector);
 	    hdr->FetchFrom(table[i].sector);
 	    hdr->Print();
 	}
     printf("\n");
     delete hdr;
+}
+
+int
+Directory::findDir(char *name)
+{
+	int pos;
+	int i, j;
+	int dirSector;
+	char *dir = new char[24];
+	int p;
+	Directory *directory = new Directory(10);
+	OpenFile *dirFile = new OpenFile(1);
+
+	pos = 0;
+	for (i = 0; name[i] != NULL; i++)
+		if (name[i] == '/')
+			pos = i;
+	
+	if (pos == 0) {
+		delete dir;
+		return 1;
+	}
+	
+	directory->FetchFrom(dirFile);
+	delete dirFile;
+
+	i = 0;
+	p = 0;
+	while(i <= pos) {
+		if (name[i] != '/') {
+			dir[p++] = name[i];
+		}
+		else {
+			dir[p] = '\0';
+			p = 0;
+			printf("dir name: %s\n", dir);		
+			dirSector = directory->Find(dir);
+			if (dirSector == -1) {
+				break;
+			}
+			dirFile = new OpenFile(dirSector);
+			directory->FetchFrom(dirFile);
+			delete dirFile;
+		}
+		i++;
+	}
+	
+	delete dir;
+	delete directory;
+	return dirSector;
 }

@@ -59,6 +59,7 @@ extern int testnum;
 
 // External functions used by this file
 
+extern void CreateDir(char *name);
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
@@ -86,7 +87,8 @@ main(int argc, char **argv)
 
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv);
-    
+   
+/*
 #ifdef THREADS
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
       argCount = 1;
@@ -105,7 +107,7 @@ main(int argc, char **argv)
 
     ThreadTest();
 #endif
-
+*/
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
@@ -147,7 +149,12 @@ main(int argc, char **argv)
             fileSystem->Print();
 	} else if (!strcmp(*argv, "-t")) {	// performance test
             PerformanceTest();
+	} else if (!strcmp(*argv, "-md")) {
+		ASSERT(argc > 1);
+		CreateDir(*(argv + 1));
+		argCount = 2;
 	}
+		
 #endif // FILESYS
 #ifdef NETWORK
         if (!strcmp(*argv, "-o")) {

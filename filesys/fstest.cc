@@ -23,6 +23,13 @@
 
 #define TransferSize 	10 	// make it small, just to be difficult
 
+
+void 
+CreateDir(char *name)
+{
+	fileSystem->Create(name, -1);
+}
+
 //----------------------------------------------------------------------
 // Copy
 // 	Copy the contents of the UNIX file "from" to the Nachos file "to"

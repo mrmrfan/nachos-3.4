@@ -12,17 +12,29 @@
 
 #include "syscall.h"
 
-int A[500];
-int a = 1, b = 1, c = 1;
+int fd1, fd2;
+int result;
+char buffer[20];
 
+/*int A[500];
+int a = 1, b = 1, c = 1;
+*/
 int
 main()
 {
-	int i;
+	Create("write.txt");
+	fd1 = Open("read.txt");
+	fd2 = Open("write.txt");
+	result = Read(buffer, 20, fd1);
+	Write(buffer, result, fd2);
+	Close(fd1);
+	Close(fd2);
+		
+/*	int i;
 	for (i = 0; i < 500; i++)
 		A[i] = 1;
 	for (i = 0; i < 500; i++)
 		A[i] = 2;
-    Halt();
+*/  Halt();
     /* not reached */
 }

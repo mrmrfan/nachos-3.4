@@ -59,6 +59,45 @@ PrintAllPageTable()
 		
 }
 
+void execFunc(int address) {
+	char name[10];
+	int pos = 0;
+	int data;
+	OpenFile *executable;
+	AddrSpace *space;
+
+	while (1) {
+		machine->ReadMem(address+pos, 1, &data);
+		if (data == 0){
+			name[pos] = '\0';
+			break;
+		}
+		name[pos++] = char(data);
+	}
+	
+	executable = fileSystem->Open(name);
+	space = new AddrSpace(executable);
+	currentThread->space = space;
+	delete executable;
+	space->InitRegisters();
+	space->RestoreState();
+	machine->Run();
+}
+
+void forkFunc(int address)
+{
+/*	Info* info = (Info*)address;
+	AddrSpace *space = info->space;
+
+	currentThread->space = space;
+	space->InitRegister();
+	space->RestoreState();
+	machine->WriteRegister(PCReg, info->pc);
+	machine->WriteRegister(NextPCReg, info->pc+4);
+	machine->Run();
+*/
+}
+
 void
 ExceptionHandler(ExceptionType which)
 {
@@ -67,7 +106,125 @@ ExceptionHandler(ExceptionType which)
     if ((which == SyscallException) && (type == SC_Halt)) {
 	DEBUG('a', "Shutdown, initiated by user program.\n");
    	interrupt->Halt();
-    } else if (which == PageFaultException) {
+    } else if ((which == SyscallException) && (type == SC_Create)) {
+		printf("syscall create\n");
+		int address = machine->ReadRegister(4);
+		char name[10];
+		int pos = 0;
+		int data;
+
+		while (1) {
+			machine->ReadMem(address+pos, 1, &data);
+			if (data == 0) {
+				name[pos] = '\0';
+				break;
+			}
+			name[pos++] = char(data);
+		}
+
+		fileSystem->Create(name, 128);
+
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Open)) {
+		printf("syscall open\n");
+		int address = machine->ReadRegister(4);
+		char name[10];
+		int pos = 0;
+		int data;
+
+		while (1) {
+			machine->ReadMem(address + pos, 1, &data);
+			if (data == 0) {
+				name[pos] = '\0';
+				break;
+			}
+			name[pos++] = char(data);
+		}
+
+		OpenFile *file = fileSystem->Open(name);
+		machine->WriteRegister(2, int(file));
+
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Close)) {
+		printf("syscall close\n");
+		int fd = machine->ReadRegister(4);
+		OpenFile *file = (OpenFile*)fd;
+		delete file;
+
+		machine->PCAdvance();
+
+	} else if ((which == SyscallException) && (type == SC_Read)) {
+		printf("syscall read\n");
+		int pos = machine->ReadRegister(4);
+		int size = machine->ReadRegister(5);
+		int fd = machine->ReadRegister(6);
+		char content[size];
+		int result;
+		OpenFile *file = (OpenFile*)fd;
+
+		result = file->Read(content, size);
+		for (int i = 0; i < result; i++) {
+			machine->WriteMem(pos+i, 1, int(content[i]));
+		}
+		machine->WriteRegister(2, result);
+
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Write)) {
+		printf("syscall write\n");
+		int pos = machine->ReadRegister(4);
+		int size = machine->ReadRegister(5);
+		int fd = machine->ReadRegister(6);
+		char content[size];
+		int data;
+		OpenFile *file = (OpenFile*)fd;
+
+		for (int i = 0; i < size; i++) {
+			machine->ReadMem(pos+i, 1, &data);
+			content[i] = char(data);
+		}
+		file->Write(content, size);
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Exec)) {
+		printf("syscall exec\n");
+		int address = machine->ReadRegister(4);
+		Thread* thread = new Thread("thread", 1);
+		thread->Fork(execFunc, address);
+		machine->WriteRegister(2, thread->gettid());
+
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Fork)) {
+		printf("syscall fork\n");
+/*		int funcPC = machine->ReadRegister(4);
+		OpenFile *executable = fileSystem->Open(currentThread->filename);
+		AddrSpace *space = new AddrSpace(executable);
+		space->addrspaceCp(currentThread->space);
+		Info* info = new Info;
+		info->space = space;
+		info->pc = funcPC;
+
+		Thread *thread = new Thread("thread");
+		thread->Fork(forkFunc, int(info));
+*/
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Yield)) {
+		printf("syscall yield\n");
+		machine->PCAdvance();
+		currentThread->Yield();
+	} else if ((which == SyscallException) && (type == SC_Join)) {
+		printf("syscall join\n");
+		int id = machine->ReadRegister(4);
+		while (ThreadArray[id])
+			currentThread->Yield();
+		machine->PCAdvance();
+	} else if ((which == SyscallException) && (type == SC_Exit)) {
+		printf("syscall exit\n");
+		int status = machine->ReadRegister(4);
+		
+//		machine->clear();
+		machine->PCAdvance();
+		currentThread->Finish();
+	}
+	else if (which == PageFaultException) {
         
 		// tlb miss
         int virtAddr = machine->ReadRegister(BadVAddrReg);

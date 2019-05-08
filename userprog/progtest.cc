@@ -49,14 +49,14 @@ UserProcess(char *filename)
 void
 StartProcess(char *filename)
 {
-	Thread *t1 = new Thread("t1", 0);
+	/*Thread *t1 = new Thread("t1", 0);
 	Thread *t2 = new Thread("t2", 0);
 
 	t1->Fork(UserProcess, (void*)filename);
 	t1->Suspend();
 	t2->Fork(UserProcess, (void*)filename);
 	t1->Resume();
-	UserProcess(filename);
+	*/UserProcess(filename);
 }
 
 /*
